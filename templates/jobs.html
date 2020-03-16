@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block main %}
+<h1 align="center">Job list</h1>
+{% for job in data %}
+{% set leader = session.query(User).filter(User.id == job.team_leader).first() %}
+<div class="container" style='margin: auto; padding: 20px;'>
+<h2 align="center">Job №{{loop.index}}</h2>
+<table class="table table-bordered">
+  <thead>
+    <tr class="table-active">
+	<th scope='col'>Title of activity</th>
+	<th scope='col'>Team leader</th>
+	<th scope='col'>Duration</th>
+	<th scope='col'>List of collaborators</th>
+	<th scope='col'>Is finished</th>
+	</tr>
+	</thead>
+	<tbody>
+		<tr class="table-info">
+			<td>{{job.job}}</td>
+			<td>{{leader.surname}} {{leader.name}}</td>
+			<td>{{job.duration}} hours</td>
+			<td>{{job.collaborators}}</td>
+			<td style='background-color: {{"#98FB98" if job.is_finished == 1 else "#FFA07A"}};'>{{"Is finished" if job.is_finished == 1 else "Is not finished"}}</td>	
+		</tr>
+	</tbody>
+</table>
+</div>
+{% endfor %}
+{% endblock %}
