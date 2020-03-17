@@ -17,3 +17,6 @@ class Jobs(SqlAlchemyBase):
     end_date = sqlalchemy.Column(sqlalchemy.DateTime, default=datetime.datetime.now)
     is_finished = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
     user = orm.relation('User')
+
+    def __repr__(self):
+        return str(self.id) + str(self.job)

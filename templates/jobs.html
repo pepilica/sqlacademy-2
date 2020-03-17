@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block main %}
 <h1 align="center">Job list</h1>
+{% if current_user.is_authenticated %}
+    <a href="addjob" class="btn btn-secondary">Add job</a>
+{% endif %}
 {% for job in data %}
 {% set leader = session.query(User).filter(User.id == job.team_leader).first() %}
 <div class="container" style='margin: auto; padding: 20px;'>
@@ -26,5 +29,11 @@
 	</tbody>
 </table>
 </div>
+{% if current_user.is_authenticated and current_user == job.user %}
+    <div>
+        <a href="/jobs/{{ job.id }}" class="btn btn-warning">Edit</a>
+        <a href="/jobs_delete/{{ job.id }}" class="btn btn-danger">Delete</a>
+    </div>
+{% endif %}
 {% endfor %}
 {% endblock %}

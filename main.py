@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect
+from flask import Flask, render_template, redirect, request
 from flask_login import LoginManager
 from wtforms import StringField, PasswordField, SubmitField, IntegerField, BooleanField
 from flask_restful import reqparse, abort, Api, Resource
@@ -8,7 +8,7 @@ from data import db_session
 from data.jobs import Jobs
 from data.users import User
 from flask_wtf import FlaskForm
-from flask_login import login_user, login_required, logout_user
+from flask_login import login_user, login_required, logout_user, current_user
 import users_resource
 
 
@@ -17,7 +17,6 @@ app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
 login_manager = LoginManager()
 login_manager.init_app(app)
 user_api = Api(app)
-
 
 user_api.add_resource(users_resource.UsersResource, '/api/v2/users/<int:user_id>')
 user_api.add_resource(users_resource.UsersListResource, '/api/v2/users')
@@ -45,7 +44,7 @@ class RegisterForm(FlaskForm):
 
 class CreateJobForm(FlaskForm):
     job = StringField('Job name', validators=[DataRequired()])
-    team_leader = StringField('Team leader ID', validators=[DataRequired()])
+    team_leader = IntegerField('Team leader ID', validators=[DataRequired()])
     collaborators = StringField('Collaborators')
     work_size = IntegerField('Work size')
     is_finished = BooleanField('Is finished?')
@@ -59,9 +58,11 @@ def load_user(user_id):
 
 
 @app.route('/')
+@app.route('/index')
 def main():
     session = db_session.create_session()
-    return render_template('jobs.html', data=session.query(Jobs), session=session, User=User, title='Jobs')
+    return render_template('jobs.html', data=session.query(Jobs), session=session, User=User, title='Jobs',
+                           current_user=current_user)
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -111,10 +112,11 @@ def login():
 @app.route('/addjob', methods=['POST', 'GET'])
 def addjob():
     form = CreateJobForm()
+    print(current_user)
     if form.validate_on_submit():
         session = db_session.create_session()
-        user = session.query(User).filter(User.id == int(form.team_leader.data)).all()
-        if user:
+        user0 = session.query(User).filter(User.id == form.team_leader.data).all()
+        if user0:
             job = Jobs(
                 job=form.job.data,
                 team_leader=form.team_leader.data,
@@ -122,12 +124,14 @@ def addjob():
                 is_finished=form.is_finished.data,
                 work_size=form.work_size.data
             )
+            session.merge(current_user)
             session.add(job)
             session.commit()
             return redirect("/")
         else:
-            return render_template('job_submit.html', title='Job add', form=form, message='Team leader does not exists')
-    return render_template('job_submit.html', title='Job add', form=form)
+            return render_template('job_submit.html', title='Job add', form=form, message='Team leader does not exists',
+                                   action='Adding a Job')
+    return render_template('job_submit.html', title='Job edit', form=form, action='Adding a Job')
 
 
 @app.route('/logout')
@@ -135,6 +139,58 @@ def addjob():
 def logout():
     logout_user()
     return redirect("/")
+
+
+@app.route('/jobs/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_news(id):
+    form = CreateJobForm()
+    if request.method == "GET":
+        session = db_session.create_session()
+        job = session.query(Jobs).filter(Jobs.id == id,
+                                         ((Jobs.user == current_user) | (current_user.id == 1))).first()
+        if job:
+            form.job.data = job.job
+            form.team_leader.data = job.team_leader
+            form.collaborators.data = job.collaborators
+            form.is_finished.data = job.is_finished
+            form.work_size.data = job.work_size
+        else:
+            abort(403)
+    if form.validate_on_submit():
+        session = db_session.create_session()
+        job = session.query(Jobs).filter(Jobs.id == id,
+                                         ((Jobs.user == current_user) | (current_user.id == 1))).first()
+        user = session.query(User).filter(User.id == int(form.team_leader.data)).all()
+        if job:
+            if user:
+                job.job = form.job.data
+                job.team_leader = form.team_leader.data
+                job.collaborators = form.collaborators.data
+                job.is_finished = form.is_finished.data
+                job.work_size = form.work_size.data
+                session.commit()
+                return redirect('/')
+            else:
+                return render_template('job_submit.html', title='Job edit', form=form,
+                                       message='Team leader does not exists', action='Editing a Job')
+        else:
+            abort(403)
+    return render_template('job_submit.html', title='Job edit', form=form, action='Editing a Job')
+
+
+@app.route('/jobs_delete/<int:id>', methods=['GET', 'POST'])
+@login_required
+def news_delete(id):
+    session = db_session.create_session()
+    job = session.query(Jobs).filter(Jobs.id == id,
+                                     ((Jobs.user == current_user) | (current_user.id == 1))).first()
+    if job:
+        session.delete(job)
+        session.commit()
+    else:
+        abort(403)
+    return redirect('/')
 
 
 if __name__ == '__main__':
