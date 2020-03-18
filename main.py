@@ -7,6 +7,7 @@ from wtforms.validators import DataRequired
 from data import db_session
 from data.jobs import Jobs
 from data.users import User
+from data.departments import Departments
 from flask_wtf import FlaskForm
 from flask_login import login_user, login_required, logout_user, current_user
 import users_resource
@@ -27,6 +28,14 @@ class LoginForm(FlaskForm):
     password = PasswordField('Пароль', validators=[DataRequired()])
     remember_me = BooleanField('Запомнить меня')
     submit = SubmitField('Войти')
+
+
+class DepartmentForm(FlaskForm):
+    title = StringField('Department title', validators=[DataRequired()])
+    chief = IntegerField('Department chief', validators=[DataRequired()])
+    members = StringField('Members')
+    email = EmailField('Department mail', validators=[DataRequired()])
+    submit = SubmitField('Submit')
 
 
 class RegisterForm(FlaskForm):
@@ -57,9 +66,94 @@ def load_user(user_id):
     return session.query(User).get(user_id)
 
 
-@app.route('/')
+@app.route('/departments')
+def departments():
+    session = db_session.create_session()
+    return render_template('departments.html', data=session.query(Departments),
+                           session=session, User=User, title='Departments',
+                           current_user=current_user)
+
+
+@app.route('/add_department', methods=['POST', 'GET'])
+def add_department():
+    form = DepartmentForm()
+    if form.validate_on_submit():
+        session = db_session.create_session()
+        user0 = session.query(User).filter(User.id == form.chief.data).all()
+        if user0:
+            department = Departments(
+                title=form.title.data,
+                chief=form.chief.data,
+                members=form.members.data,
+                email=form.email.data
+            )
+            session.merge(current_user)
+            session.add(department)
+            session.commit()
+            return redirect("/departments")
+        else:
+            return render_template('department_submit.html', title='Department add', form=form,
+                                   message='Team leader does not exists',
+                                   action='Adding a Department')
+    return render_template('department_submit.html', title='Department add', form=form, action='Adding a Department')
+
+
+@app.route('/departments/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_department(id):
+    form = DepartmentForm()
+    if request.method == "GET":
+        session = db_session.create_session()
+        department = session.query(Departments).filter(Departments.id == id,
+                                                       ((Departments.user == current_user) |
+                                                        (current_user.id == 1))).first()
+        if department:
+            form.title.data = department.title
+            form.chief.data = department.chief
+            form.members.data = department.members
+            form.email.data = department.email
+        else:
+            abort(403)
+    if form.validate_on_submit():
+        session = db_session.create_session()
+        department = session.query(Departments).filter(Departments.id == id,
+                                                       ((Departments.user == current_user) |
+                                                        (current_user.id == 1))).first()
+        user = session.query(User).filter(User.id == form.chief.data).all()
+        if department:
+            if user:
+                department.title = form.title.data
+                department.chief = form.chief.data
+                department.members = form.members.data
+                department.email = form.email.data
+                session.commit()
+                return redirect('/departments')
+            else:
+                return render_template('department_submit.html', title='Department edit', form=form,
+                                       message='Team leader does not exists', action='Editing a Department')
+        else:
+            abort(403)
+    return render_template('department_submit.html', title='Department edit', form=form, action='Editing a Department')
+
+
+@app.route('/departments_delete/<int:id>', methods=['GET', 'POST'])
+@login_required
+def departments_delete(id):
+    session = db_session.create_session()
+    department = session.query(Departments).filter(Departments.id == id,
+                                                   ((Departments.user == current_user) |
+                                                    (current_user.id == 1))).first()
+    if department:
+        session.delete(department)
+        session.commit()
+    else:
+        abort(403)
+    return redirect('/departments')
+
+
 @app.route('/index')
-def main():
+@app.route('/')
+def jobs():
     session = db_session.create_session()
     return render_template('jobs.html', data=session.query(Jobs), session=session, User=User, title='Jobs',
                            current_user=current_user)
@@ -90,7 +184,7 @@ def register():
         user.set_password(form.password.data)
         session.add(user)
         session.commit()
-        return redirect('/login')
+        return redirect('/')
     return render_template('register.html', title='Register', form=form)
 
 
@@ -110,7 +204,7 @@ def login():
 
 
 @app.route('/addjob', methods=['POST', 'GET'])
-def addjob():
+def add_job():
     form = CreateJobForm()
     print(current_user)
     if form.validate_on_submit():
@@ -143,7 +237,7 @@ def logout():
 
 @app.route('/jobs/<int:id>', methods=['GET', 'POST'])
 @login_required
-def edit_news(id):
+def edit_job(id):
     form = CreateJobForm()
     if request.method == "GET":
         session = db_session.create_session()
@@ -181,7 +275,7 @@ def edit_news(id):
 
 @app.route('/jobs_delete/<int:id>', methods=['GET', 'POST'])
 @login_required
-def news_delete(id):
+def jobs_delete(id):
     session = db_session.create_session()
     job = session.query(Jobs).filter(Jobs.id == id,
                                      ((Jobs.user == current_user) | (current_user.id == 1))).first()
@@ -195,4 +289,5 @@ def news_delete(id):
 
 if __name__ == '__main__':
     db_session.global_init("db/mars.sqlite")
+
     app.run(port=8080, host='127.0.0.1')
