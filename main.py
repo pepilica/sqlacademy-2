@@ -210,7 +210,10 @@ def add_job():
     if form.validate_on_submit():
         session = db_session.create_session()
         user0 = session.query(User).filter(User.id == form.team_leader.data).all()
-        if user0:
+        if current_user.id != form.team_leader.data and current_user.id != 1:
+            return render_template('job_submit.html', title='Job add', form=form, message='Operation forbidden',
+                                   action='Adding a Job')
+        elif user0:
             job = Jobs(
                 job=form.job.data,
                 team_leader=form.team_leader.data,
@@ -255,9 +258,12 @@ def edit_job(id):
         session = db_session.create_session()
         job = session.query(Jobs).filter(Jobs.id == id,
                                          ((Jobs.user == current_user) | (current_user.id == 1))).first()
-        user = session.query(User).filter(User.id == int(form.team_leader.data)).all()
+        user = session.query(User).filter(User.id == form.team_leader.data).all()
         if job:
-            if user:
+            if current_user.id != form.team_leader.data and current_user.id != 1:
+                return render_template('job_submit.html', title='Job edit', form=form, message='Operation forbidden',
+                                       action='Editing a Job')
+            elif user:
                 job.job = form.job.data
                 job.team_leader = form.team_leader.data
                 job.collaborators = form.collaborators.data
@@ -265,6 +271,9 @@ def edit_job(id):
                 job.work_size = form.work_size.data
                 session.commit()
                 return redirect('/')
+            elif current_user.id != form.team_leader.data and current_user.id != 1:
+                return render_template('job_submit.html', title='Job edit', form=form, message='Operation forbidden',
+                                       action='Adding a Job')
             else:
                 return render_template('job_submit.html', title='Job edit', form=form,
                                        message='Team leader does not exists', action='Editing a Job')
