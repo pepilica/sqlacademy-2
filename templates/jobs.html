@@ -16,6 +16,7 @@
 	<th scope='col'>Team leader</th>
 	<th scope='col'>Duration</th>
 	<th scope='col'>List of collaborators</th>
+	<th scope='col'>Hazard category</th>
 	<th scope='col'>Is finished</th>
 	</tr>
 	</thead>
@@ -25,6 +26,7 @@
 			<td>{{leader.surname}} {{leader.name}}</td>
 			<td>{{job.work_size}} hours</td>
 			<td>{{job.collaborators}}</td>
+			<td>{{job.hazard_level[0].hazard}}</td>
 			<td style='background-color: {{"#98FB98" if job.is_finished == 1 else "#FFA07A"}};'>{{"Is finished" if job.is_finished == 1 else "Is not finished"}}</td>	
 		</tr>
 	</tbody>

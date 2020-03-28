@@ -6,6 +6,8 @@ from wtforms.fields.html5 import EmailField
 from wtforms.validators import DataRequired
 from data import db_session
 from data.jobs import Jobs
+from data.hazard import Hazard
+from data.hazard import association_table
 from data.users import User
 from data.departments import Departments
 from flask_wtf import FlaskForm
@@ -56,6 +58,7 @@ class CreateJobForm(FlaskForm):
     team_leader = IntegerField('Team leader ID', validators=[DataRequired()])
     collaborators = StringField('Collaborators')
     work_size = IntegerField('Work size')
+    hazard_level = IntegerField('Hazard category (1 - 10)')
     is_finished = BooleanField('Is finished?')
     submit = SubmitField('Submit')
 
@@ -213,14 +216,18 @@ def add_job():
         if current_user.id != form.team_leader.data and current_user.id != 1:
             return render_template('job_submit.html', title='Job add', form=form, message='Operation forbidden',
                                    action='Adding a Job')
+        elif not 0 < form.hazard_level.data < 11:
+            return render_template('job_submit.html', title='Job add', form=form, message='Wrong hazard category',
+                                   action='Adding a Job')
         elif user0:
             job = Jobs(
                 job=form.job.data,
                 team_leader=form.team_leader.data,
                 collaborators=form.collaborators.data,
                 is_finished=form.is_finished.data,
-                work_size=form.work_size.data
+                work_size=form.work_size.data,
             )
+            job.hazard_level.append(session.query(Hazard).filter(Hazard.hazard == form.hazard_level.data).first())
             session.merge(current_user)
             session.add(job)
             session.commit()
@@ -252,6 +259,7 @@ def edit_job(id):
             form.collaborators.data = job.collaborators
             form.is_finished.data = job.is_finished
             form.work_size.data = job.work_size
+            form.hazard_level.data = job.hazard_level[0].hazard
         else:
             abort(403)
     if form.validate_on_submit():
@@ -263,12 +271,17 @@ def edit_job(id):
             if current_user.id != form.team_leader.data and current_user.id != 1:
                 return render_template('job_submit.html', title='Job edit', form=form, message='Operation forbidden',
                                        action='Editing a Job')
+            elif not 0 < form.hazard_level.data < 11:
+                return render_template('job_submit.html', title='Job edit', form=form, message='Wrong hazard category',
+                                       action='Editing a Job')
             elif user:
                 job.job = form.job.data
                 job.team_leader = form.team_leader.data
                 job.collaborators = form.collaborators.data
                 job.is_finished = form.is_finished.data
                 job.work_size = form.work_size.data
+                job.hazard_level.remove(job.hazard_level[0])
+                job.hazard_level.append(session.query(Hazard).filter(Hazard.hazard == form.hazard_level.data).first())
                 session.commit()
                 return redirect('/')
             elif current_user.id != form.team_leader.data and current_user.id != 1:
@@ -298,5 +311,4 @@ def jobs_delete(id):
 
 if __name__ == '__main__':
     db_session.global_init("db/mars.sqlite")
-
     app.run(port=8080, host='127.0.0.1')
