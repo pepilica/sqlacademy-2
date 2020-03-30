@@ -13,4 +13,7 @@ class Hazard(SqlAlchemyBase):
     __tablename__ = 'hazards'
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True,
                            autoincrement=True)
-    hazard = sqlalchemy.Column(sqlalchemy.String, nullable=True)
+    hazard = sqlalchemy.Column(sqlalchemy.Integer, nullable=True)
+
+    def __repr__(self):
+        return self.hazard

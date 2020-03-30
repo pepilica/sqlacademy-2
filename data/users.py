@@ -1,14 +1,21 @@
 import datetime
 import sqlalchemy
+from sqlalchemy_serializer import SerializerMixin
+
+from data.departments import Departments
+from data.jobs import Jobs
 from .db_session import SqlAlchemyBase
 from sqlalchemy import orm
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_login import UserMixin
 
 
-class User(SqlAlchemyBase, UserMixin):
+class User(SqlAlchemyBase, UserMixin, SerializerMixin):
     __tablename__ = 'users'
-
+    serialize_types = (
+        (Jobs, lambda x: x.job),
+        (Departments, lambda x: x.title)
+    )
     id = sqlalchemy.Column(sqlalchemy.Integer,
                            primary_key=True, autoincrement=True)
     surname = sqlalchemy.Column(sqlalchemy.String, nullable=True)
@@ -24,6 +31,7 @@ class User(SqlAlchemyBase, UserMixin):
                                       default=datetime.datetime.now)
     jobs = orm.relation("Jobs", back_populates='user')
     departments = orm.relation('Departments', back_populates='user')
+    city_from = sqlalchemy.Column(sqlalchemy.String, default='Moscow')
 
     def set_password(self, password):
         self.hashed_password = generate_password_hash(password)

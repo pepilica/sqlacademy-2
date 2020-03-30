@@ -1,4 +1,8 @@
-from flask import Flask, render_template, redirect, request
+from io import BytesIO
+
+import requests
+from PIL import Image
+from flask import Flask, render_template, redirect, request, jsonify
 from flask_login import LoginManager
 from wtforms import StringField, PasswordField, SubmitField, IntegerField, BooleanField
 from flask_restful import reqparse, abort, Api, Resource
@@ -12,8 +16,11 @@ from data.users import User
 from data.departments import Departments
 from flask_wtf import FlaskForm
 from flask_login import login_user, login_required, logout_user, current_user
+from requests import get
 import users_resource
-
+import jobs_api
+import users_api
+from get_coords import get_bbox
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
@@ -50,6 +57,7 @@ class RegisterForm(FlaskForm):
     position = StringField('Position', validators=[DataRequired()])
     speciality = StringField('Speciality', validators=[DataRequired()])
     address = StringField("Address", validators=[DataRequired()])
+    city_from = StringField('Hometown')
     submit = SubmitField('Submit')
 
 
@@ -184,6 +192,8 @@ def register():
             speciality=form.speciality.data,
             address=form.address.data
         )
+        if form.city_from.data:
+            user.city_from = form.city_from.data
         user.set_password(form.password.data)
         session.add(user)
         session.commit()
@@ -215,9 +225,6 @@ def add_job():
         user0 = session.query(User).filter(User.id == form.team_leader.data).all()
         if current_user.id != form.team_leader.data and current_user.id != 1:
             return render_template('job_submit.html', title='Job add', form=form, message='Operation forbidden',
-                                   action='Adding a Job')
-        elif not 0 < form.hazard_level.data < 11:
-            return render_template('job_submit.html', title='Job add', form=form, message='Wrong hazard category',
                                    action='Adding a Job')
         elif user0:
             job = Jobs(
@@ -271,9 +278,6 @@ def edit_job(id):
             if current_user.id != form.team_leader.data and current_user.id != 1:
                 return render_template('job_submit.html', title='Job edit', form=form, message='Operation forbidden',
                                        action='Editing a Job')
-            elif not 0 < form.hazard_level.data < 11:
-                return render_template('job_submit.html', title='Job edit', form=form, message='Wrong hazard category',
-                                       action='Editing a Job')
             elif user:
                 job.job = form.job.data
                 job.team_leader = form.team_leader.data
@@ -309,6 +313,46 @@ def jobs_delete(id):
     return redirect('/')
 
 
+@app.route('/users_show/<int:user_id>')
+def users_show(user_id):
+    user = get(f'http://127.0.0.1:8080/api/users/{user_id}').json()
+    if 'error' in user.keys():
+        abort(404)
+    else:
+        name, surname = user['user']['name'], user['user']['surname']
+        city_from = user['user']['city_from']
+        geocoder_params = {
+            "apikey": "40d1649f-0493-4b70-98ba-98533de7710b",
+            "geocode": city_from,
+            "format": "json"
+        }
+        response = requests.get('http://geocode-maps.yandex.ru/1.x/', params=geocoder_params)
+
+        json_response = response.json()
+        print(json_response)
+        if json_response and not 'error' in json_response.keys():
+            toponym = json_response["response"]["GeoObjectCollection"][
+                "featureMember"]
+            if toponym:
+                toponym = toponym[0]["GeoObject"]
+                toponym_coodrinates = toponym["Point"]["pos"]
+                info = toponym['boundedBy']['Envelope']
+                toponym_longitude, toponym_lattitude = toponym_coodrinates.split(" ")
+                map_params = {
+                    "ll": ",".join([toponym_longitude, toponym_lattitude]),
+                    "l": "sat",
+                    'bbox': get_bbox(info)
+                }
+                response = requests.get('http://static-maps.yandex.ru/1.x/', params=map_params).url
+                print(response)
+                return render_template('nostalgy.html', url=response, name=name, surname=surname,
+                                       city_from=city_from, title='Nostalgy')
+        return render_template('nostalgy.html', url='', name=name, surname=surname,
+                               city_from=city_from, title='Nostalgy')
+
+
 if __name__ == '__main__':
     db_session.global_init("db/mars.sqlite")
+    app.register_blueprint(jobs_api.blueprint)
+    app.register_blueprint(users_api.blueprint)
     app.run(port=8080, host='127.0.0.1')
