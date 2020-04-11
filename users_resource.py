@@ -63,7 +63,6 @@ class UsersListResource(Resource):
             email=args['email'],
             age=args['age'],
             password=generate_password_hash(args['password'])
-
         )
         session.add(user)
         session.commit()
