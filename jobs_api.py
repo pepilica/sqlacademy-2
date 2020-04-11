@@ -58,7 +58,11 @@ def create_job():
         is_finished=request.json['is_finished'],
         work_size=request.json['work_size'],
     )
-    job.hazard_level.append(session.query(Hazard).filter(Hazard.hazard == request.json['hazard_level']).first())
+    possible = session.query(Hazard).filter(Hazard.hazard == request.json['hazard_level']).first()
+    if not possible:
+        session.add(Hazard(hazard=request.json['hazard_level']))
+        possible = session.query(Hazard).filter(Hazard.hazard == request.json['hazard_level']).first()
+    job.hazard_level.append(possible)
     session.add(job)
     session.commit()
     return jsonify({'success': 'OK'})
@@ -99,7 +103,12 @@ def edit_job(job_id):
     job.collaborators = request.json['collaborators']
     job.is_finished = request.json['is_finished']
     job.work_size = request.json['work_size']
-    job.hazard_level.remove(job.hazard_level[0])
-    job.hazard_level.append(session.query(Hazard).filter(Hazard.hazard == request.json['hazard_level']).first())
+    if job.hazard_level:
+        job.hazard_level.remove(job.hazard_level[0])
+    possible = session.query(Hazard).filter(Hazard.hazard == request.json['hazard_level']).first()
+    if not possible:
+        session.add(Hazard(hazard=request.json['hazard_level']))
+        possible = session.query(Hazard).filter(Hazard.hazard == request.json['hazard_level']).first()
+    job.hazard_level.append(possible)
     session.commit()
     return jsonify({'success': 'OK'})

@@ -234,7 +234,12 @@ def add_job():
                 is_finished=form.is_finished.data,
                 work_size=form.work_size.data,
             )
-            job.hazard_level.append(session.query(Hazard).filter(Hazard.hazard == form.hazard_level.data).first())
+            possible = session.query(Hazard).filter(Hazard.hazard == form.hazard_level.data).first()
+            if not possible:
+                session.add(Hazard(hazard=form.hazard_level.data))
+                possible = session.query(Hazard).filter(Hazard.hazard == form.hazard_level.data).first()
+                print(possible)
+            job.hazard_level.append(possible)
             session.merge(current_user)
             session.add(job)
             session.commit()
@@ -266,7 +271,8 @@ def edit_job(id):
             form.collaborators.data = job.collaborators
             form.is_finished.data = job.is_finished
             form.work_size.data = job.work_size
-            form.hazard_level.data = job.hazard_level[0].hazard
+            if job.hazard_level:
+                form.hazard_level.data = job.hazard_level[0].hazard
         else:
             abort(403)
     if form.validate_on_submit():
@@ -284,8 +290,13 @@ def edit_job(id):
                 job.collaborators = form.collaborators.data
                 job.is_finished = form.is_finished.data
                 job.work_size = form.work_size.data
-                job.hazard_level.remove(job.hazard_level[0])
-                job.hazard_level.append(session.query(Hazard).filter(Hazard.hazard == form.hazard_level.data).first())
+                if job.hazard_level:
+                    job.hazard_level.remove(job.hazard_level)
+                possible = session.query(Hazard).filter(Hazard.hazard == form.hazard_level.data).first()
+                if not possible:
+                    session.add(Hazard(hazard=form.hazard_level.data))
+                    possible = session.query(Hazard).filter(Hazard.hazard == form.hazard_level.data).first()
+                job.hazard_level.append(possible)
                 session.commit()
                 return redirect('/')
             elif current_user.id != form.team_leader.data and current_user.id != 1:

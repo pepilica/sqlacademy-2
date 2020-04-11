@@ -14,6 +14,7 @@ parser.add_argument('email', required=True)
 parser.add_argument('password', required=True)
 parser.add_argument('user_id', required=True, type=int)
 parser.add_argument('age', required=True, type=int)
+parser.add_argument('city_from')
 
 
 def id_check(user_id):
@@ -29,7 +30,7 @@ class UsersResource(Resource):
         session = db_session.create_session()
         user = session.query(User).get(User.id)
         return jsonify({
-            'user': user.to_dict(only=('name', 'surname', 'position', 'address', 'age'))
+            'user': user.to_dict(only=('name', 'surname', 'position', 'address', 'age', 'city_from'))
         })
 
     def delete(self, user_id):
@@ -46,7 +47,7 @@ class UsersListResource(Resource):
         session = db_session.create_session()
         users = session.query(User).all()
         return jsonify({
-            'user': [item.to_dict(only=('name', 'surname', 'position', 'address', 'age')) for item in users]
+            'user': [item.to_dict(only=('name', 'surname', 'position', 'address', 'age', 'city_from')) for item in users]
         })
 
     def post(self):
@@ -62,6 +63,7 @@ class UsersListResource(Resource):
             email=args['email'],
             age=args['age'],
             password=generate_password_hash(args['password'])
+
         )
         session.add(user)
         session.commit()
