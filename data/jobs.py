@@ -25,4 +25,4 @@ class Jobs(SqlAlchemyBase, SerializerMixin):
     hazard_level = orm.relation('Hazard', secondary="jobs_to_hazard", backref="job")
 
     def __repr__(self):
-        return str(self.id) + str(self.job)
+        return str(self.id) + ' ' + str(self.job)

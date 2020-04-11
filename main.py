@@ -18,6 +18,7 @@ from flask_wtf import FlaskForm
 from flask_login import login_user, login_required, logout_user, current_user
 from requests import get
 import users_resource
+import jobs_resource
 import jobs_api
 import users_api
 from get_coords import get_bbox
@@ -30,6 +31,8 @@ user_api = Api(app)
 
 user_api.add_resource(users_resource.UsersResource, '/api/v2/users/<int:user_id>')
 user_api.add_resource(users_resource.UsersListResource, '/api/v2/users')
+user_api.add_resource(jobs_resource.JobsResource, '/api/v2/jobs/<int:job_id>')
+user_api.add_resource(jobs_resource.JobsListResource, '/api/v2/jobs')
 
 
 class LoginForm(FlaskForm):
