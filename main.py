@@ -7,7 +7,7 @@ from flask_login import LoginManager
 from wtforms import StringField, PasswordField, SubmitField, IntegerField, BooleanField
 from flask_restful import reqparse, abort, Api, Resource
 from wtforms.fields.html5 import EmailField
-from wtforms.validators import DataRequired
+from wtforms.validators import DataRequired, NumberRange
 from data import db_session
 from data.jobs import Jobs
 from data.hazard import Hazard
@@ -69,7 +69,7 @@ class CreateJobForm(FlaskForm):
     team_leader = IntegerField('Team leader ID', validators=[DataRequired()])
     collaborators = StringField('Collaborators')
     work_size = IntegerField('Work size')
-    hazard_level = IntegerField('Hazard category (1 - 10)')
+    hazard_level = IntegerField('Hazard category (1 - 10)', validators=[NumberRange(0, 10)])
     is_finished = BooleanField('Is finished?')
     submit = SubmitField('Submit')
 
@@ -294,7 +294,7 @@ def edit_job(id):
                 job.is_finished = form.is_finished.data
                 job.work_size = form.work_size.data
                 if job.hazard_level:
-                    job.hazard_level.remove(job.hazard_level)
+                    job.hazard_level.remove(job.hazard_level[0])
                 possible = session.query(Hazard).filter(Hazard.hazard == form.hazard_level.data).first()
                 if not possible:
                     session.add(Hazard(hazard=form.hazard_level.data))
